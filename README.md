@@ -125,8 +125,6 @@ Al hacer `POST /validations`:
 
 Si DynamoDB falla **después** de guardar en MongoDB, el registro se conserva, el error queda en los logs y se responde `201`: no quise que el cliente vea un error por un problema de la auditoría. El costo es que podría quedar una validación sin evento. Los eventos de fallo también son "mejor esfuerzo": si no se pueden escribir, se loguea y se propaga el error original.
 
-Para ver los eventos guardados: `npm run audit:view`.
-
 ## Datos sensibles
 
 El número de documento es un dato sensible, así que:
