@@ -9,6 +9,7 @@ import { EnrichmentService } from '../../src/services/enrichment.service.js';
 import { ValidationsRepository } from '../../src/repositories/validations.repository.js';
 import { AuditRepository } from '../../src/repositories/audit.repository.js';
 import { createDynamoClients, ensureAuditTable } from '../../src/db/dynamo.js';
+import { hashDocument } from '../../src/utils/crypto.js';
 
 const TEST_MONGO_URI = 'mongodb://localhost:27017/validations_integration_test';
 const TEST_TABLE_NAME = 'validations-audit-integration-test';
@@ -99,11 +100,11 @@ describe('Integration: POST + GET /validations', () => {
     expect(getRes.body.name).toBe('Juan Pérez');
     expect(getRes.body.documentNumber).toBe('DOC12345');
     expect(getRes.body.enrichment.country).toBe('Colombia');
-    expect(getRes.body.enrichment.officialName).toBe('Colombia');
+    expect(getRes.body.enrichment.alpha3Code).toBe('COL');
     expect(getRes.body.enrichment.region).toBe('Americas');
     expect(getRes.body.enrichment.capital).toBe('Bogotá');
-    expect(getRes.body.enrichment.currencyCode).toBe('COP');
-    expect(getRes.body.enrichment.currencyName).toBe('COP');
+    expect(getRes.body.enrichment.currency).toBe('COP');
+    expect(getRes.body.enrichment.population).toBe(53425635);
     expect(getRes.body.enrichment.source).toBe('countries-api');
     expect(getRes.body.createdAt).toBeDefined();
     expect(getRes.body._id).toBeUndefined();
@@ -118,18 +119,20 @@ describe('Integration: POST + GET /validations', () => {
     expect(postRes.status).toBe(201);
     const { id } = postRes.body;
 
+    const hashedDoc = hashDocument('AUDIT99999');
+
     const queryResult = await dynamoDocClient.send(
       new QueryCommand({
         TableName: TEST_TABLE_NAME,
         KeyConditionExpression: 'documentNumber = :dn',
-        ExpressionAttributeValues: { ':dn': 'AUDIT99999' },
+        ExpressionAttributeValues: { ':dn': hashedDoc },
       }),
     );
 
     expect(queryResult.Items).toHaveLength(1);
 
     const item = queryResult.Items[0];
-    expect(item.documentNumber).toBe('AUDIT99999');
+    expect(item.documentNumber).toBe(hashedDoc);
     expect(item.eventType).toBe('VALIDATION_CREATED');
     expect(item.validationId).toBe(id);
     expect(item.createdAt).toBeDefined();
@@ -153,11 +156,13 @@ describe('Integration: POST + GET /validations', () => {
     expect(res2.status).toBe(201);
     expect(res1.body.id).not.toBe(res2.body.id);
 
+    const hashedMulti = hashDocument(doc);
+
     const queryResult = await dynamoDocClient.send(
       new QueryCommand({
         TableName: TEST_TABLE_NAME,
         KeyConditionExpression: 'documentNumber = :dn',
-        ExpressionAttributeValues: { ':dn': doc },
+        ExpressionAttributeValues: { ':dn': hashedMulti },
       }),
     );
 
