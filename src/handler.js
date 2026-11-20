@@ -8,11 +8,14 @@ import { EnrichmentService } from './services/enrichment.service.js';
 import { ValidationsService } from './services/validations.service.js';
 import { createApp } from './app.js';
 
-let cachedApp;
+// Cache connections OUTSIDE the handler for reuse across Lambda invocations
+let cachedHandler;
 let cachedDocClient;
 
+const NO_BODY_METHODS = new Set(['GET', 'DELETE', 'HEAD', 'OPTIONS']);
+
 async function bootstrap() {
-  if (cachedApp) return cachedApp;
+  if (cachedHandler) return cachedHandler;
 
   const env = loadEnv();
 
@@ -47,13 +50,21 @@ async function bootstrap() {
     auditRepository,
   });
 
-  cachedApp = createApp({ validationsService });
-  return cachedApp;
+  const app = createApp({ validationsService });
+  cachedHandler = serverless(app, {
+    request: (req, event) => {
+      if (NO_BODY_METHODS.has(event.httpMethod)) {
+        delete req.headers['content-length'];
+        delete req.headers['content-type'];
+      }
+    },
+  });
+
+  return cachedHandler;
 }
 
 export const handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
-  const app = await bootstrap();
-  const serverlessHandler = serverless(app);
-  return serverlessHandler(event, context);
+  const wrappedHandler = await bootstrap();
+  return wrappedHandler(event, context);
 };
