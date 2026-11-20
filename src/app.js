@@ -10,7 +10,15 @@ export function createApp({ validationsService }) {
   const app = express();
 
   app.use(helmet());
-  app.use(pinoHttp({ logger: pino({ level: 'info' }) }));
+  app.use(pinoHttp({
+    logger: pino({
+      level: 'info',
+      redact: {
+        paths: ['req.body.documentNumber', 'responseBody.documentNumber'],
+        censor: '[REDACTED]',
+      },
+    }),
+  }));
   app.use(express.json());
 
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
