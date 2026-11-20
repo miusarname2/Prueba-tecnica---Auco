@@ -3,12 +3,16 @@ import mongoose from 'mongoose';
 const enrichmentSchema = new mongoose.Schema(
   {
     country: { type: String, required: true },
-    officialName: { type: String, required: true },
+    alpha3Code: { type: String },
     region: { type: String, required: true },
+    subregion: { type: String },
     capital: { type: String, required: true },
-    currencyCode: { type: String, required: true },
-    currencyName: { type: String, required: true },
-    source: { type: String, required: true, default: 'restcountries' },
+    population: { type: Number },
+    languages: [{ type: String }],
+    currency: { type: String, required: true },
+    flag: { type: String },
+    callingCode: { type: String },
+    source: { type: String, required: true, default: 'countries-api' },
   },
   { _id: false },
 );
