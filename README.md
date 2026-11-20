@@ -165,6 +165,14 @@ npm run offline
 
 Esto levanta un API Gateway emulado en `http://localhost:3000` usando `serverless-offline`.
 
+> [!NOTE]
+> **Prefijo `/dev` según la versión de `serverless-offline`:**
+> Al ejecutar `serverless-offline`, por defecto emula el stage de AWS (`dev`) anteponiéndolo en las rutas expuestas en consola:
+> - `POST http://localhost:3000/dev/validations`
+> - `GET  http://localhost:3000/dev/validations/{id}`
+>
+> Asegúrate de revisar la tabla de rutas que imprime `serverless-offline` en tu terminal al arrancar. Si incluye `/dev`, usa esa URL en Postman o cURL. (Si prefieres omitir el prefijo `/dev`, puedes ejecutar `npx serverless offline --noPrependStageInUrl`).
+
 
 ### Estructura
 
