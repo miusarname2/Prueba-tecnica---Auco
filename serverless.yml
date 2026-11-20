@@ -1,0 +1,58 @@
+service: validations-service
+
+frameworkVersion: '3'
+
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${env:AWS_REGION, 'us-east-1'}
+  environment:
+    PORT: ${env:PORT, '3000'}
+    MONGO_URI: ${env:MONGO_URI}
+    DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT}
+    AWS_REGION: ${env:AWS_REGION, 'us-east-1'}
+    AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID, 'local'}
+    AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY, 'local'}
+    AUDIT_TABLE_NAME: ${env:AUDIT_TABLE_NAME, 'validations-audit'}
+    COUNTRIES_API_URL: ${env:COUNTRIES_API_URL}
+    DEFAULT_COUNTRY_CODE: ${env:DEFAULT_COUNTRY_CODE, 'CO'}
+    EXTERNAL_API_TIMEOUT_MS: ${env:EXTERNAL_API_TIMEOUT_MS, '5000'}
+    EXTERNAL_API_RETRIES: ${env:EXTERNAL_API_RETRIES, '1'}
+
+functions:
+  createValidation:
+    handler: src/handler.handler
+    events:
+      - http:
+          path: validations
+          method: post
+
+  getValidation:
+    handler: src/handler.handler
+    events:
+      - http:
+          path: validations/{id}
+          method: get
+
+plugins:
+  - serverless-offline
+
+resources:
+  Resources:
+    AuditTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${env:AUDIT_TABLE_NAME, 'validations-audit'}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: documentNumber
+            AttributeType: S
+          - AttributeName: eventKey
+            AttributeType: S
+        KeySchema:
+          - AttributeName: documentNumber
+            KeyType: HASH
+          - AttributeName: eventKey
+            KeyType: RANGE
