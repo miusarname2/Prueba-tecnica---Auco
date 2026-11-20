@@ -7,9 +7,10 @@ export function errorHandler(err, req, res, _next) {
     return res.status(err.status).json(body);
   }
 
-  if (err.type === 'entity.parse.failed') {
+  if (err.type === 'entity.parse.failed' || err.type === 'request.size.invalid'
+    || (err.status === 400 && err.expose === true)) {
     return res.status(400).json({
-      error: { code: 'VALIDATION_ERROR', message: 'Malformed JSON in request body' },
+      error: { code: 'VALIDATION_ERROR', message: 'Malformed or invalid request body' },
     });
   }
 
