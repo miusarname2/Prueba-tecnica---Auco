@@ -5,8 +5,8 @@ export function makeValidationsController(validationsService) {
   return {
     async create(req, res, next) {
       try {
-        const { name, documentNumber } = req.body;
-        const id = await validationsService.create({ name, documentNumber });
+        const { name, documentNumber, countryCode } = req.body;
+        const id = await validationsService.create({ name, documentNumber, countryCode });
         res.status(201).json({ id });
       } catch (err) {
         next(err);
