@@ -31,12 +31,16 @@ vi.mock('../../src/services/enrichment.service.js', () => ({
   EnrichmentService: vi.fn().mockImplementation(() => ({
     enrich: vi.fn().mockResolvedValue({
       country: 'Colombia',
-      officialName: 'Republic of Colombia',
+      alpha3Code: 'COL',
       region: 'Americas',
+      subregion: 'South America',
       capital: 'Bogotá',
-      currencyCode: 'COP',
-      currencyName: 'Colombian peso',
-      source: 'restcountries',
+      population: 53425635,
+      languages: ['Spanish'],
+      currency: 'COP',
+      flag: '🇨🇴',
+      callingCode: '+57',
+      source: 'countries-api',
     }),
   })),
 }));

@@ -85,4 +85,42 @@ describe('createValidationSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('should accept a valid countryCode (optional)', () => {
+    const result = createValidationSchema.safeParse({
+      name: 'Juan Pérez',
+      documentNumber: 'ABC12345',
+      countryCode: 'AR',
+    });
+    expect(result.success).toBe(true);
+    expect(result.data.countryCode).toBe('AR');
+  });
+
+  it('should accept lowercase countryCode and uppercase it', () => {
+    const result = createValidationSchema.safeParse({
+      name: 'Juan Pérez',
+      documentNumber: 'ABC12345',
+      countryCode: 'mx',
+    });
+    expect(result.success).toBe(true);
+    expect(result.data.countryCode).toBe('MX');
+  });
+
+  it('should reject countryCode with more than 2 characters', () => {
+    const result = createValidationSchema.safeParse({
+      name: 'Juan Pérez',
+      documentNumber: 'ABC12345',
+      countryCode: 'COL',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept request without countryCode (uses default)', () => {
+    const result = createValidationSchema.safeParse({
+      name: 'Juan Pérez',
+      documentNumber: 'ABC12345',
+    });
+    expect(result.success).toBe(true);
+    expect(result.data.countryCode).toBeUndefined();
+  });
 });

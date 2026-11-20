@@ -37,14 +37,53 @@ describe('EnrichmentService', () => {
 
     expect(result).toEqual({
       country: 'Colombia',
-      officialName: 'Colombia',
+      alpha3Code: 'COL',
       region: 'Americas',
+      subregion: 'South America',
       capital: 'Bogotá',
-      currencyCode: 'COP',
-      currencyName: 'COP',
+      population: 53425635,
+      languages: ['Spanish'],
+      currency: 'COP',
+      flag: '🇨🇴',
+      callingCode: '+57',
       source: 'countries-api',
     });
     expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledWith(
+      'https://api.example.com/countries/CO',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  it('should use the provided countryCode instead of the default', async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      status: 200,
+      json: async () => ({
+        name: 'Argentina',
+        code: 'AR',
+        alpha3Code: 'ARG',
+        capital: 'Buenos Aires',
+        region: 'Americas',
+        subregion: 'South America',
+        population: 45376763,
+        languages: ['Spanish'],
+        currency: 'ARS',
+        flag: '🇦🇷',
+        callingCode: '+54',
+      }),
+    });
+
+    const service = createService(fetchFn);
+    const result = await service.enrich('AR');
+
+    expect(result.country).toBe('Argentina');
+    expect(result.capital).toBe('Buenos Aires');
+    expect(result.currency).toBe('ARS');
+    expect(result.alpha3Code).toBe('ARG');
+    expect(fetchFn).toHaveBeenCalledWith(
+      'https://api.example.com/countries/AR',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it('should retry on 500 and throw EXTERNAL_API_ERROR after exhausting retries', async () => {

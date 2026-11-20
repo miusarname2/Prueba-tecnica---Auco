@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AuditRepository } from '../../src/repositories/audit.repository.js';
+import { hashDocument } from '../../src/utils/crypto.js';
 
 describe('AuditRepository.buildEventKey', () => {
   it('builds eventKey as <ISO>#<validationId>', () => {
@@ -16,5 +17,21 @@ describe('AuditRepository.buildEventKey', () => {
     expect(parts).toHaveLength(2);
     expect(parts[0]).toBe('2024-06-01T00:00:00.000Z');
     expect(parts[1]).toBe('abc123');
+  });
+});
+
+describe('hashDocument (PII protection)', () => {
+  it('returns a 64-char hex string (SHA-256)', () => {
+    const hash = hashDocument('DOC12345');
+    expect(hash).toHaveLength(64);
+    expect(hash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('is deterministic (same input → same output)', () => {
+    expect(hashDocument('ABC')).toBe(hashDocument('ABC'));
+  });
+
+  it('different inputs produce different hashes', () => {
+    expect(hashDocument('DOC1')).not.toBe(hashDocument('DOC2'));
   });
 });
