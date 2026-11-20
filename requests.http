@@ -1,10 +1,40 @@
-### Crear una validación (caso exitoso)
+### Crear una validación (caso exitoso — con countryCode)
 POST http://localhost:3000/validations
 Content-Type: application/json
 
 {
   "name": "Juan Pérez",
-  "documentNumber": "ABC12345"
+  "documentNumber": "ABC12345",
+  "countryCode": "CO"
+}
+
+### Crear una validación (sin countryCode — usa default)
+POST http://localhost:3000/validations
+Content-Type: application/json
+
+{
+  "name": "María López",
+  "documentNumber": "DOC99999"
+}
+
+### Crear una validación (otro país — Argentina)
+POST http://localhost:3000/validations
+Content-Type: application/json
+
+{
+  "name": "Carlos Ruiz",
+  "documentNumber": "ARG54321",
+  "countryCode": "AR"
+}
+
+### Crear una validación (otro país — México)
+POST http://localhost:3000/validations
+Content-Type: application/json
+
+{
+  "name": "Ana García",
+  "documentNumber": "MEX67890",
+  "countryCode": "MX"
 }
 
 ### Crear una validación (nombre inválido)
