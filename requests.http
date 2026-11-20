@@ -1,0 +1,45 @@
+### Crear una validación (caso exitoso)
+POST http://localhost:3000/validations
+Content-Type: application/json
+
+{
+  "name": "Juan Pérez",
+  "documentNumber": "ABC12345"
+}
+
+### Crear una validación (nombre inválido)
+POST http://localhost:3000/validations
+Content-Type: application/json
+
+{
+  "name": "J@hn!",
+  "documentNumber": "ABC12345"
+}
+
+### Crear una validación (campo extra)
+POST http://localhost:3000/validations
+Content-Type: application/json
+
+{
+  "name": "Juan Pérez",
+  "documentNumber": "ABC12345",
+  "extra": "no permitido"
+}
+
+### Crear una validación (documento vacío)
+POST http://localhost:3000/validations
+Content-Type: application/json
+
+{
+  "name": "Juan Pérez",
+  "documentNumber": ""
+}
+
+### Obtener una validación (reemplazar ID con uno real)
+GET http://localhost:3000/validations/507f1f77bcf86cd799439011
+
+### Obtener una validación (ID inválido)
+GET http://localhost:3000/validations/no-valido
+
+### Health check
+GET http://localhost:3000/health
