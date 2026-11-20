@@ -1,58 +1,32 @@
-# Decisiones de Diseño
+# Decisiones de diseño
 
-## 1. Llaves de DynamoDB para Auditoría
+## Llaves de DynamoDB
 
-**Partition Key (PK):** `documentNumber` (String)
-**Sort Key (SK):** `eventKey` con formato `<ISO 8601>#<validationId>`
+- **Partition key:** el documento (`documentNumber`, hasheado, ver más abajo).
+- **Sort key:** `<fecha ISO>#<id de la validación>`.
 
-### Justificación
+Elegí el documento como partition key porque la pregunta natural sobre una auditoría es "¿qué validaciones ha tenido este documento?", y así se responde con una sola query. La fecha va primero en la sort key porque el formato ISO se ordena bien como texto, y eso me da el historial en orden cronológico (y rangos de fechas con `BETWEEN`). Le agregué el id de la validación al final para que dos eventos del mismo documento en el mismo instante no se pisen.
 
-- **Historial por documento:** al usar `documentNumber` como PK, todas las validaciones de un mismo documento quedan agrupadas bajo la misma partición. Esto permite consultar eficientemente el historial completo de un documento con una sola query.
-- **Orden cronológico:** el SK comienza con el timestamp ISO 8601, que se ordena lexicográficamente de forma natural. Así, los eventos se ordenan cronológicamente al hacer queries con `ScanIndexForward`.
-- **Sin colisiones:** al concatenar `#validationId` al timestamp, se garantiza que dos validaciones del mismo documento en el mismo instante tengan sort keys distintos (el `_id` de MongoDB es único).
-- **Consultas eficientes:** se puede filtrar por rango de fechas usando `BETWEEN` sobre el SK.
+## Si DynamoDB falla después de guardar en Mongo
 
-## 2. Política de Fallo de Auditoría
+Dejo el registro en Mongo, registro el error en logs y respondo 201. Mongo es la fuente de verdad y no quería que el cliente viera un error por un problema de la auditoría. El costo es que podría quedar una validación sin evento. Con más tiempo lo resolvería con una cola o un outbox.
 
-**Decisión:** si DynamoDB falla DESPUÉS de guardar en MongoDB, el registro de Mongo se conserva y se responde `201` al cliente.
+## Timeout y reintentos con la API externa
 
-## 3. Timeout y Reintentos de la API Externa
+Timeout de 5 s (configurable) y un reintento de 300 ms, solo ante errores de red, timeout o 5xx. En 4xx no reintento porque el resultado no va a cambiar. Si la API sigue fallando, respondo 502 (error de la API) o 504 (timeout) y no guardo nada.
 
-- **Timeout:** configurable via `EXTERNAL_API_TIMEOUT_MS` (default 5000ms), implementado con `AbortController`.
-- **Reintentos:** hasta `EXTERNAL_API_RETRIES` reintentos adicionales (default 1), solo ante errores de red, timeout o respuestas 5xx.
-- **Sin reintentos en 4xx:** los errores del cliente no se reintentan porque probablemente son permanentes.
-- **Espera entre reintentos:** 300ms fijos (suficiente para un fallo transitorio).
+## País opcional
 
-## 4. Protección de Datos Sensibles (PII)
+Además de nombre y documento acepté un `countryCode` opcional (por defecto `CO`), para que el enriquecimiento no sea siempre idéntico. Se valida como código de 2 letras y se pasa a mayúsculas.
 
-**Decisión:** el `documentNumber` se hashea con **SHA-256** antes de almacenarse como clave de partición en DynamoDB y antes de registrarse en cualquier log de auditoría.
+## Datos sensibles
 
-### Justificación
+El documento es un dato sensible, así que en DynamoDB y en los logs no lo guardo en claro: uso SHA-256 en la tabla de auditoría y `redact` de pino en los logs. Es una mitigación básica, no una solución completa: como los documentos tienen un espacio de valores pequeño, alguien con acceso a la tabla podría probarlos todos. En producción usaría HMAC con un secreto o KMS. En Mongo el documento sigue en claro porque el negocio lo necesita.
 
-- **Principio de minimización de datos:** solo se conserva el hash irreversible en la tabla de auditoría. MongoDB mantiene el valor original porque es necesario para la lógica de negocio.
-- **Cumplimiento regulatorio:** el hash protege el dato sensible en caso de acceso no autorizado a la tabla de auditoría (DynamoDB).
-- **Redacción en logs:** se configura `pino` con la opción `redact` para sustituir `req.body.documentNumber` por `[REDACTED]` en los logs HTTP.
-- **Reversibilidad controlada:** como SHA-256 es determinista, se puede verificar si un documento concreto tiene eventos haciendo `hashDocument(doc)` y consultando DynamoDB con ese hash.
+## Qué mejoraría con más tiempo
 
-## 5. Registro de Eventos de Fallo en Auditoría
-
-**Decisión:** cuando falla el enriquecimiento (`ENRICHMENT_FAILED`) o la escritura a MongoDB (`MONGO_WRITE_FAILED`), se registra un evento de fallo en DynamoDB antes de propagar la excepción.
-
-### Justificación
-
-- **Trazabilidad completa:** no solo se registran los éxitos, también los intentos fallidos. Esto permite detectar patrones de error (ej.: API caída, MongoDB saturado).
-- **Best-effort en fallos:** si la escritura del evento de fallo a DynamoDB también falla, se loguea el error pero no se enmascara la excepción original.
-- **Campos adicionales:** los eventos de fallo incluyen `errorCode` y `errorMessage` para facilitar el diagnóstico sin necesidad de cruzar con logs de aplicación.
-
-## 6. Mejoras Futuras
-
-- **Cola o patrón Outbox para auditoría:** reemplazar la escritura directa a DynamoDB por un patrón Outbox (escribir evento en Mongo en la misma transacción, luego un worker lo replica a DynamoDB) para garantizar consistencia eventual sin perder eventos.
-- **Backoff exponencial:** reemplazar la espera fija de 300ms por backoff exponencial con jitter para evitar thundering herd.
-- **Rate limiting:** agregar rate limiting (por IP o por documento) para proteger contra abuso.
-- **CI/CD:** pipeline de integración continua que ejecute tests unitarios e integración con Docker Compose.
-- **Observabilidad:** métricas (Prometheus/CloudWatch), trazas distribuidas (OpenTelemetry), alertas sobre fallos de auditoría.
-- **TypeScript:** migrar a TypeScript para mayor seguridad de tipos en el desarrollo.
-- **Cifrado con KMS:** reemplazar el hash SHA-256 por cifrado simétrico con AWS KMS para permitir descifrado cuando sea necesario (ej.: derecho al olvido GDPR).
-- **Cifrado a nivel de campo en MongoDB:** usar Client-Side Field Level Encryption (CSFLE) de MongoDB para cifrar el `documentNumber` también en la base de datos principal.
-- **Política de retención de auditoría:** configurar TTL en DynamoDB para eliminar automáticamente eventos antiguos según la política de retención de datos.
-- **Dead Letter Queue (DLQ):** enviar los eventos de auditoría fallidos a una cola SQS DLQ para re-procesamiento posterior, en lugar de solo loguearlo.
+- Outbox o cola para la auditoría, para no perder eventos si Dynamo falla.
+- Backoff exponencial en los reintentos.
+- Cifrar el documento (KMS) en vez de solo hashearlo.
+- Rate limiting y CI que corra los tests con Docker.
+- Métricas y alertas sobre fallos de auditoría.
