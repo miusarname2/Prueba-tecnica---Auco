@@ -20,8 +20,9 @@ export class EnrichmentService {
     this.fetchFn = fetchFn ?? globalThis.fetch;
   }
 
-  async enrich() {
-    const url = `${this.baseUrl}/countries/${this.countryCode}`;
+  async enrich(countryCode) {
+    const code = countryCode ?? this.countryCode;
+    const url = `${this.baseUrl}/countries/${code}`;
     const maxAttempts = 1 + this.retries;
 
     let lastError;
@@ -82,17 +83,21 @@ export class EnrichmentService {
   _mapResponse(body) {
     try {
       const country = body.name;
-      const officialName = body.name; 
+      const alpha3Code = body.alpha3Code;
       const region = body.region;
+      const subregion = body.subregion;
       const capital = body.capital;
-      const currencyCode = body.currency;
-      const currencyName = body.currency;
+      const population = body.population;
+      const languages = body.languages;
+      const currency = body.currency;
+      const flag = body.flag;
+      const callingCode = body.callingCode;
 
-      if (!country || !region || !capital || !currencyCode) {
+      if (!country || !region || !capital || !currency) {
         throw new Error('Missing expected fields');
       }
 
-      return { country, officialName, region, capital, currencyCode, currencyName, source: 'countries-api' };
+      return { country, alpha3Code, region, subregion, capital, population, languages, currency, flag, callingCode, source: 'countries-api' };
     } catch (err) {
       logger.error({ err }, 'Unexpected response format from external API');
       throw new AppError(502, 'EXTERNAL_API_ERROR', 'External enrichment service returned an unexpected format');
